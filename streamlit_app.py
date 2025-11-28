@@ -1,9 +1,35 @@
 import streamlit as st
 import numpy as np
-import joblib
+import pandas as pd
 
-# Load model (saved from your notebook)
-model = joblib.load("house_price_model.pkl")
+from xgboost import XGBRegressor
+from sklearn.model_selection import train_test_split
+
+# Train model on startup and cache it
+@st.cache_resource
+def train_model():
+    # Load Boston Housing dataset
+    url = "https://raw.githubusercontent.com/selva86/datasets/master/BostonHousing.csv"
+    df = pd.read_csv(url)
+
+    X = df.drop(columns=["medv"])
+    y = df["medv"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
+    model = XGBRegressor(
+        n_estimators=500,
+        learning_rate=0.05,
+        max_depth=3,
+        random_state=42,
+    )
+    model.fit(X_train, y_train)
+
+    return model
+
+model = train_model()
 
 st.title("Boston House Price Prediction App")
 st.write("Enter the details below to predict the house price (in $1000s).")
@@ -26,5 +52,5 @@ lstat = st.number_input("% lower status of the population (lstat)", min_value=0.
 if st.button("Predict Price"):
     input_data = np.array([[crim, zn, indus, chas, nox, rm,
                             age, dis, rad, tax, ptratio, b, lstat]])
-    prediction = model.predict(input_data)[0]
+    prediction = model.predict(input_data)[0]   # single value
     st.success(f"Estimated House Price: ${prediction * 1000:,.2f}")
